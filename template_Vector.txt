@@ -1,0 +1,79 @@
+package main
+
+type {{container}} struct {
+	data []{{type}}
+}
+
+type {{it}} struct {
+	off int
+	v   *{{container}}
+}
+
+func (i {{it}}) Get() {{type}} {
+	return i.v.data[i.off]
+}
+func (i {{it}}) Next() {{it}} {
+	return {{it}}{i.off + 1, i.v}
+}
+
+func (i {{it}}) Prev() {{it}} {
+	return {{it}}{i.off - 1, i.v}
+}
+
+func (i {{it}}) Add(d int) {{it}} {
+	if i.off+d > len(i.v.data) {
+		return {{it}}{len(i.v.data), i.v}
+	}
+	return {{it}}{i.off + d, i.v}
+}
+
+func (i {{it}}) Minus(d int) {{it}} {
+	if i.off-d < 0 {
+		return {{it}}{0, i.v}
+	}
+	return {{it}}{i.off - d, i.v}
+}
+
+func New{{container}}() *{{container}} {
+	return &{{container}}{make([]{{type}}, 0)}
+}
+
+func (v *{{container}}) Empty() bool {
+	return len(v.data) == 0
+}
+
+func (v *{{container}}) Size() int {
+	return len(v.data)
+}
+
+func (v *{{container}}) Begin() {{it}} {
+	return {{it}}{0, v}
+}
+
+func (v *{{container}}) End() {{it}} {
+	return {{it}}{len(v.data), v}
+}
+
+func (v *{{container}}) PushBack(s {{type}}) {
+	v.data = append(v.data, s)
+}
+
+func (v *{{container}}) Data() []{{type}} {
+	return v.data
+}
+
+func (v *{{container}}) PopBack() {
+	v.data = v.data[0 : len(v.data)-1]
+}
+
+func (v *{{container}}) Front() {{type}} {
+	return v.data[0]
+}
+
+func (v *{{container}}) Back() {{type}} {
+	return v.data[len(v.data)-1]
+}
+
+func (v *{{container}}) At(i int) {{type}} {
+	return v.data[i]
+}

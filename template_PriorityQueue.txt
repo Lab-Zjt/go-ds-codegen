@@ -1,0 +1,88 @@
+package main
+
+type {{container}} struct {
+	data []{{type}}
+	size int
+}
+
+func New{{container}}() *{{container}} {
+	return &{{container}}{make([]{{type}}, 0), 0}
+}
+
+func (p *{{container}}) less(index1, index2 int) bool {
+	return p.data[index1] < p.data[index2]
+}
+
+func (p *{{container}}) swap(index1, index2 int) {
+	p.data[index1], p.data[index2] = p.data[index2], p.data[index1]
+}
+
+func father(i int) int {
+	return (i - 1) / 2
+}
+func left(i int) int {
+	return i*2 + 1
+}
+func right(i int) int {
+	return i*2 + 2
+}
+
+func (p *{{container}}) Empty() bool {
+	return p.size == 0
+}
+
+func (p *{{container}}) Size() int {
+	return p.size
+}
+
+func (p *{{container}}) Push(s {{type}}) {
+	p.data = append(p.data, s)
+	pos := p.size
+	f := father(pos)
+	p.size++
+	for pos > 0 && p.less(pos, f) {
+		p.swap(pos, f)
+		pos = f
+		f = father(pos)
+	}
+}
+
+func (p *{{container}}) Top() {{type}} {
+	return p.data[0]
+}
+
+func (p *{{container}}) Pop() {{type}} {
+	save := p.data[0]
+	p.size--
+	p.data[0] = p.data[p.size]
+	pos := 0
+	next := pos
+	l := left(pos)
+	r := right(pos)
+	for {
+		if l >= p.size {
+			break
+		} else {
+			if p.less(l, pos) {
+				p.swap(l, pos)
+				next = l
+			}
+		}
+		if r >= p.size {
+			break
+		} else {
+			if p.less(r, pos) {
+				p.swap(r, pos)
+				next = r
+			}
+		}
+		if next == pos {
+			break
+		} else {
+			pos = next
+			l = left(pos)
+			r = right(pos)
+		}
+	}
+	return save
+}

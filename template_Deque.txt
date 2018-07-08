@@ -1,0 +1,62 @@
+package main
+
+type {{container}} struct {
+	data []{{type}}
+	size int
+	head int
+	tail int
+}
+
+func New{{container}}() *{{container}} {
+	return &{{container}}{make([]{{type}}, 0), 0, 0, 0}
+}
+
+func (d *{{container}}) Empty() bool {
+	return d.size == 0
+}
+
+func (d *{{container}}) Size() int {
+	return d.size
+}
+
+func (d *{{container}}) PushBack(s {{type}}) {
+	if d.head > d.size {
+		d.data = d.data[d.head:d.tail]
+		d.head = 0
+		d.tail = d.size
+	}
+	d.data = append(d.data, s)
+	d.tail++
+	d.size++
+}
+
+func (d *{{container}}) PushFront(s {{type}}) {
+	//TODO: Optimize resize
+	if d.head == 0 {
+		d.data = append(make([]{{type}}, d.size+1), d.data...)
+		d.head += d.size + 1
+		d.tail += d.size + 1
+	}
+	d.head--
+	d.data[d.head] = s
+	d.size++
+}
+
+func (d *{{container}}) PopBack() {{type}} {
+	d.tail--
+	d.size--
+	return d.data[d.tail]
+}
+
+func (d *{{container}}) PopFront() {{type}} {
+	d.head++
+	d.size--
+	return d.data[d.head-1]
+}
+
+func (d *{{container}}) Clear() {
+	d.data = make([]{{type}}, 0)
+	d.size = 0
+	d.head = 0
+	d.tail = 0
+}

@@ -1,0 +1,209 @@
+package main
+
+import (
+	"errors"
+)
+
+type node struct {
+	data       {{type}}
+	next, prev *node
+}
+
+type {{container}} struct {
+	size       int
+	head, tail *node
+}
+
+type {{it}} struct {
+	n *node
+	l *{{container}}
+}
+
+func New{{container}}() *{{container}} {
+	return &{{container}}{size: 0, head: nil, tail: nil}
+}
+
+func (l *{{container}}) Empty() bool {
+	return l.size > 0
+}
+
+func (l *{{container}}) Size() int {
+	return l.size
+}
+
+func (l *{{container}}) PushBack(d {{type}}) {
+	if l.head == nil {
+		l.head = &node{d, nil, nil}
+		l.tail = l.head
+		l.size++
+	} else {
+		n := &node{d, nil, l.tail}
+		l.tail.next = n
+		l.tail = n
+		l.size++
+	}
+}
+
+func (l *{{container}}) PushFront(d {{type}}) {
+	if l.tail == nil {
+		l.head = &node{d, nil, nil}
+		l.tail = l.head
+		l.size++
+	} else {
+		n := &node{d, l.head, nil}
+		l.head.prev = n
+		l.head = n
+		l.size++
+	}
+}
+func (l *{{container}}) PopBack() {
+	if l.tail == nil {
+		return
+	}
+	if l.head == l.tail {
+		l.head = nil
+		l.tail = nil
+		l.size = 0
+		return
+	}
+	l.tail = l.tail.prev
+	if l.tail != nil {
+		l.tail.next = nil
+	}
+	l.size--
+}
+
+func (l *{{container}}) PopFront() {
+	if l.head == nil {
+		return
+	}
+	if l.head == l.tail {
+		l.head = nil
+		l.tail = nil
+		l.size = 0
+		return
+	}
+	l.head = l.head.next
+	if l.head != nil {
+		l.head.prev = nil
+	}
+	l.size--
+}
+
+func (i {{it}}) Next() {{it}} {
+	return {{it}}{i.n.next, i.l}
+}
+
+func (i {{it}}) Prev() {{it}} {
+	if i.n == nil {
+		return {{it}}{i.l.tail, i.l}
+	}
+	return {{it}}{i.n.prev, i.l}
+}
+
+func (i {{it}}) Add(d int) {{it}} {
+	if d <= 0 || i.n == nil {
+		return i
+	}
+	for d>0 {
+		if i.n.next == nil {
+			return i
+		}
+		d--
+		i.n = i.n.next
+	}
+	return i
+}
+
+func (i {{it}}) Minus(d int) {{it}} {
+	if d <= 0 {
+		return i
+	}
+	if i.n == nil {
+		d--
+		i.n = i.l.tail
+	}
+	for d>0 {
+		if i.n.prev == nil {
+			return i
+		}
+		d--
+		i.n = i.n.prev
+	}
+	return i
+}
+
+func (i {{it}}) Get() {{type}} {
+	return i.n.data
+}
+
+func (l *{{container}}) Begin() {{it}} {
+	return {{it}}{l.head, l}
+}
+
+func (l *{{container}}) End() {{it}} {
+	return {{it}}{nil, l}
+}
+func (l *{{container}}) Front() {{type}} {
+	return l.head.data
+}
+
+func (l *{{container}}) Back() {{type}} {
+	return l.tail.data
+}
+func (l *{{container}}) Clear() {
+	l.head = nil
+	l.tail = nil
+	l.size = 0
+}
+func (l *{{container}}) Insert(it {{it}}, d {{type}}) error {
+	if l != it.l {
+		return errors.New("Imcompitible {{container}}")
+	}
+	if it.n == nil {
+		l.PushBack(d)
+	} else {
+		n := &node{d, it.n, nil}
+		if it.n.prev != nil {
+			n.prev = it.n.prev
+			it.n.prev.next = n
+		} else {
+			l.head = n
+		}
+		it.n.prev = n
+		l.size++
+	}
+	return nil
+}
+func (l *{{container}}) Erase(it {{it}}) error {
+	if l != it.l {
+		return errors.New("Imcompitible {{container}}")
+	}
+	if it.n == nil {
+		return nil
+	}
+	next := it.n.next
+	prev := it.n.prev
+	if next != nil {
+		it.n.next.prev = prev
+	} else {
+		l.tail = prev
+	}
+	if prev != nil {
+		it.n.prev.next = next
+	} else {
+		l.head = next
+	}
+	it.n = nil
+	l.size--
+	return nil
+}
+
+func (l *{{container}}) Find(d {{type}}) {{it}} {
+	for it := l.Begin(); it != l.End(); it = it.Next() {
+		if it.Get() == d {
+			return it
+		}
+	}
+	return l.End()
+}

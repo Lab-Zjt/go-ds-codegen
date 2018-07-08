@@ -1,0 +1,52 @@
+package main
+
+type {{container}} struct {
+	data []{{type}}
+	size int
+	head int
+	tail int
+}
+
+func New{{container}}() *{{container}} {
+	return &{{container}}{make([]{{type}}, 0), 0, 0, 0}
+}
+
+func (q *{{container}}) Empty() bool {
+	return q.size == 0
+}
+
+func (q *{{container}}) Size() int {
+	return q.size
+}
+
+func (q *{{container}}) Clear() {
+	q.data = make([]{{type}}, 0)
+	q.size = 0
+	q.head = 0
+	q.tail = 0 
+}
+
+func (q *{{container}}) Push(d {{type}}) {
+	if q.head >= q.size {
+		q.data = q.data[q.head:q.tail]
+		q.head = 0
+		q.tail = q.size
+	}
+	q.data = append(q.data, d)
+	q.tail++
+	q.size++
+}
+
+func (q *{{container}}) Pop() {{type}} {
+	q.head++
+	q.size--
+	return q.data[q.head-1]
+}
+
+func (q *{{container}}) Front() {{type}} {
+	return q.data[q.head]
+}
+
+func (q *{{container}}) Back() {{type}} {
+	return q.data[q.tail-1]
+}
