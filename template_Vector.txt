@@ -1,16 +1,18 @@
 package main
 
-type {{container}} struct {
-	data []{{type}}
-}
+type {{container}} []{{type}}
 
 type {{it}} struct {
-	off int
+	off {{type}}
 	v   *{{container}}
 }
 
+func (i {{it}}) Illegal() {
+	v = nil
+}
+
 func (i {{it}}) Get() {{type}} {
-	return i.v.data[i.off]
+	return (*i.v)[i.off]
 }
 func (i {{it}}) Next() {{it}} {
 	return {{it}}{i.off + 1, i.v}
@@ -20,30 +22,30 @@ func (i {{it}}) Prev() {{it}} {
 	return {{it}}{i.off - 1, i.v}
 }
 
-func (i {{it}}) Add(d int) {{it}} {
-	if i.off+d > len(i.v.data) {
-		return {{it}}{len(i.v.data), i.v}
+func (i {{it}}) Add(d {{type}}) {{it}} {
+	if i.off+d > len(*i.v) {
+		return {{it}}{len(*i.v), i.v}
 	}
 	return {{it}}{i.off + d, i.v}
 }
 
-func (i {{it}}) Minus(d int) {{it}} {
+func (i {{it}}) Minus(d {{type}}) {{it}} {
 	if i.off-d < 0 {
 		return {{it}}{0, i.v}
 	}
 	return {{it}}{i.off - d, i.v}
 }
 
-func New{{container}}() *{{container}} {
-	return &{{container}}{make([]{{type}}, 0)}
+func New{{container}}() {{container}} {
+	return make([]{{type}}, 0)
 }
 
 func (v *{{container}}) Empty() bool {
-	return len(v.data) == 0
+	return len(*v) == 0
 }
 
 func (v *{{container}}) Size() int {
-	return len(v.data)
+	return len(*v)
 }
 
 func (v *{{container}}) Begin() {{it}} {
@@ -51,29 +53,70 @@ func (v *{{container}}) Begin() {{it}} {
 }
 
 func (v *{{container}}) End() {{it}} {
-	return {{it}}{len(v.data), v}
+	return {{it}}{len(*v), v}
 }
 
 func (v *{{container}}) PushBack(s {{type}}) {
-	v.data = append(v.data, s)
-}
-
-func (v *{{container}}) Data() []{{type}} {
-	return v.data
+	(*v) = append((*v), s)
 }
 
 func (v *{{container}}) PopBack() {
-	v.data = v.data[0 : len(v.data)-1]
+	(*v) = (*v)[0 : len(*v)-1]
 }
 
 func (v *{{container}}) Front() {{type}} {
-	return v.data[0]
+	return (*v)[0]
 }
 
 func (v *{{container}}) Back() {{type}} {
-	return v.data[len(v.data)-1]
+	return (*v)[len(*v)-1]
 }
 
-func (v *{{container}}) At(i int) {{type}} {
-	return v.data[i]
+func (v *{{container}}) At(i {{type}}) {{type}} {
+	return (*v)[i]
+}
+
+func (v *{{container}}) Clear() {
+	(*v) = make([]{{type}},0)
+}
+
+type {{filterfunc}} func({{type}}) bool
+
+func (v {{container}}) Filter(f {{filterfunc}}) {{container}} {
+	n := New{{container}}()
+	for _, e := range v {
+		if f(e) {
+			n.PushBack(e)
+		}
+	}
+	return n
+}
+
+type {{mapfunc}} func({{type}}) {{type}}
+
+func (v {{container}}) Map(f {{mapfunc}}) {{container}} {
+	n := make([]{{type}}, v.Size())
+	for i, e := range v {
+		n[i] = f(e)
+	}
+	return n
+}
+
+type {{foreachfunc}} func({{type}}) {{type}}
+
+func (v *{{container}}) ForEach(f {{foreachfunc}}) {{container}} {
+	for i, e := range *v {
+		(*v)[i] = f(e)
+	}
+	return *v
+}
+
+type {{reducefunc}} func({{type}}, {{type}}) {{type}}
+
+func (v {{container}}) Reduce(f {{reducefunc}}) {{type}} {
+	res := v[0]
+	for i := 0; i < len(v); ++ {
+		res = f(res, v[i])
+	}
+	return res
 }

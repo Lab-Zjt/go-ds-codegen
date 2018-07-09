@@ -1,16 +1,15 @@
 package main
 
+type cmpf func({{key}}, {{key}}) bool
+
 type {{container}} struct {
 	data []{{type}}
 	size int
+	less cmpf
 }
 
-func New{{container}}() *{{container}} {
-	return &{{container}}{make([]{{type}}, 0), 0}
-}
-
-func (p *{{container}}) less(index1, index2 int) bool {
-	return p.data[index1] < p.data[index2]
+func New{{container}}(less cmpf) *{{container}} {
+	return &{{container}}{make([]{{type}}, 0), 0, less}
 }
 
 func (p *{{container}}) swap(index1, index2 int) {
@@ -85,4 +84,9 @@ func (p *{{container}}) Pop() {{type}} {
 		}
 	}
 	return save
+}
+
+func (p *{{container}}) Clear() {
+	p.data = make([]{{type}},0)
+	p.size = 0
 }

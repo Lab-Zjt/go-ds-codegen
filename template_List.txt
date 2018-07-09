@@ -90,6 +90,11 @@ func (l *{{container}}) PopFront() {
 	l.size--
 }
 
+func (i *{{it}}) Illegal() {
+	i.n = nil
+	i.l = nil
+}
+
 func (i {{it}}) Next() {{it}} {
 	return {{it}}{i.n.next, i.l}
 }
@@ -206,4 +211,49 @@ func (l *{{container}}) Find(d {{type}}) {{it}} {
 		}
 	}
 	return l.End()
+}
+
+type {{mapfunc}} func({{type}}) {{type}}
+
+func (l *{{container}}) Map(f {{mapfunc}}) *{{container}} {
+	res := New{{container}}()
+	cur := l.head
+	for cur != l.tail {
+		res.PushBack(f(cur.data))
+	}
+	return res
+}
+
+type {{filterfunc}} func({{type}}) bool
+
+func (l *{{container}}) Filter(f {{filterfunc}}) *{{container}} {
+	res := New{{container}}()
+	cur := l.head
+	for cur != l.tail {
+		if f(cur.data) {
+			res.PushBack(cur.data)
+		}
+	}
+	return res
+}
+
+type {{foreachfunc}} func({{type}}) {{type}}
+
+func (l *{{container}}) ForEach(f {{foreachfunc}}) {{container}} {
+	cur := l.head
+	for cur != l.tail {
+		cur.data = f(cur.data)
+	}
+	return l
+}
+
+type {{reducefunc}} func({{type, {{type}}) {{type}}
+
+func (l *{{container}}) Reduce(f {{reducefunc}}) {{type}} {
+	res := l.Front()
+	cur := l.head.next
+	for cur != l.tail {
+		res = f(res, cur.data)
+	}
+	return res
 }
