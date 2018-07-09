@@ -1,4 +1,4 @@
-# go-ds-gen
+# go-ds-codegen
 
 ## Introdution
 
