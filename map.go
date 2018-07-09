@@ -1,16 +1,28 @@
 package main
 
-import "fmt"
+import (
+	"errors"
+)
 
 type mColor bool
-type mDirect bool
 
 const (
-	mRed   mColor  = true
-	mBlack mColor  = false
-	mLeft  mDirect = true
-	mRight mDirect = false
+	mRed   mColor = true
+	mBlack mColor = false
+	mZero  string = ""
 )
+
+type cmpf func(float32, float32) bool
+
+type Map struct {
+	root *mapNode
+	size int
+	less cmpf
+}
+
+func NewMap(less func(float32, float32) bool) *Map {
+	return &Map{nil, 0, less}
+}
 
 type mapNode struct {
 	key    float32
@@ -21,21 +33,34 @@ type mapNode struct {
 	right  *mapNode
 }
 
+type MapIterator struct {
+	n *mapNode
+	m *Map
+}
+
+type MapPair struct {
+	First  float32
+	Second string
+}
+
 func newMapNode(k float32, v string) *mapNode {
 	return &mapNode{k, v, mRed, nil, nil, nil}
 }
 
-type Map struct {
-	root *mapNode
-	size int
+func (n *mapNode) isLeft() bool {
+	if n.parent != nil {
+		if n.parent.left == n {
+			return true
+		}
+	}
+	return false
 }
 
-func (m *Map) less(node1, node2 *mapNode) bool {
-	return node1.key < node2.key
-}
-
-func NewMap() *Map {
-	return &Map{nil, 0}
+func (n *mapNode) isRight() bool {
+	if n.parent != nil && n.parent.right == n {
+		return true
+	}
+	return false
 }
 
 func (n *mapNode) isRed() bool {
@@ -143,32 +168,6 @@ func (n *mapNode) mInsertRight(new *mapNode) {
 	new.parent = n
 }
 
-func (m *Map) mInsert(n *mapNode) {
-	cur := m.root
-	for {
-		if m.less(n, cur) {
-			if cur.left == nil {
-				cur.mInsertLeft(n)
-				break
-			} else {
-				cur = cur.left
-			}
-		} else {
-			if cur.right == nil {
-				cur.mInsertRight(n)
-				break
-			} else {
-				cur = cur.right
-			}
-		}
-	}
-	for cur.parent != nil {
-		cur = cur.mRenewal().parent
-	}
-	m.root = cur.mRenewal()
-	m.root.color = mBlack
-}
-
 func (n *mapNode) min() *mapNode {
 	if n == nil {
 		return nil
@@ -190,16 +189,6 @@ func (n *mapNode) max() *mapNode {
 }
 
 func (n *mapNode) mDeleteMin() *mapNode {
-	/*if n.left == nil {
-		return nil
-	}
-	if n.left.isBlack() && n.left.left.isBlack() {
-		n = n.mColorFlip()
-		if n.right.left.isRed() {
-			n = n.mLeftRotate().mColorFlip()
-		}
-	}
-	n.left = n.left.mDeleteMin()*/
 	p := n.parent
 	cur := n
 	for {
@@ -228,24 +217,10 @@ func (n *mapNode) mDeleteMin() *mapNode {
 	for cur.parent != p {
 		cur = cur.parent.mRenewal()
 	}
-	return cur
+	return cur.mRenewal()
 }
 
 func (n *mapNode) mDeleteMax() *mapNode {
-	/*if n.left.isRed() {
-		n = n.mRightRotate()
-	}
-	if n.right == nil {
-		return nil
-	}
-	if n.right.isBlack() && n.right.left.isBlack() {
-		n = n.mColorFlipOnDelete()
-		if n.left.left.isBlack() {
-			n = n.mRightRotate().mColorFlip()
-		}
-	}
-	n.left = n.left.mDeleteMin()*/
-
 	cur := n
 	p := n.parent
 	for {
@@ -276,48 +251,22 @@ func (n *mapNode) mDeleteMax() *mapNode {
 	for cur.parent != p {
 		cur = cur.parent.mRenewal()
 	}
-	return cur
+	return cur.mRenewal()
 }
 
-func (n *mapNode) mErase(k float32) *mapNode {
-	/*if k < n.key {
-		if n.left.isBlack() && n.left.left.isBlack() {
-			n = n.mColorFlip()
-			if n.right.left.isRed() {
-				n.right = n.right.mRightRotate()
-				n = n.mLeftRotate().mColorFlip()
-			}
-		}
-		n.left = n.left.mErase(k)
-	} else {
-		if n.left.isRed() {
-			n = n.mRightRotate()
-		}
-		if k == n.key && (n.right == nil) {
-			return nil
-		}
-		if n.right.isBlack() && n.right.left.isBlack() {
-			n = n.mColorFlipOnDelete()
-			if n.left.left.isBlack() {
-				n = n.mRightRotate().mColorFlip()
-			}
-		}
-		if k == n.key {
-			m := n.right.min()
-			n.value = m.value
-			n.key = m.key
-			n.right = n.right.mDeleteMin()
-		} else {
-			n.right = n.right.mErase(k)
-		}
-	}
-	return n.mRenewal()*/
+func (n *mapNode) mErase(k float32) (*mapNode, bool) {
 	cur := n
+	flagNotFound := false
+	flagLast := false
 	p := n.parent
 	for {
 		if k < cur.key {
+			if cur.left == nil {
+				flagNotFound = true
+				break
+			}
 			if cur.left.isBlack() && cur.left.left.isBlack() {
-				cur = cur.mColorFlip()
+				cur = cur.mColorFlipOnDelete()
 				if cur.right.left.isRed() {
 					cur.right = cur.right.mRightRotate()
 					cur = cur.mLeftRotate().mColorFlip()
@@ -325,8 +274,12 @@ func (n *mapNode) mErase(k float32) *mapNode {
 			}
 			cur = cur.left
 		} else {
+			if k > cur.key && (cur.right == nil) {
+				flagNotFound = true
+				break
+			}
 			if cur.left.isRed() {
-				cur = cur.mRightRotate()
+				cur = cur.mRightRotate().right
 			}
 			if k == cur.key && (cur.right == nil) {
 				if cur.parent != nil {
@@ -335,13 +288,15 @@ func (n *mapNode) mErase(k float32) *mapNode {
 					} else {
 						cur.parent.right = nil
 					}
+				} else {
+					flagLast = true
 				}
 				break
 			}
 			if cur.right.isBlack() && cur.right.left.isBlack() {
-				cur = cur.mColorFlip()
-				if cur.left.left.isBlack() {
-					cur = cur.mRightRotate().mColorFlip()
+				cur = cur.mColorFlipOnDelete()
+				if cur.left.left.isRed() {
+					cur = cur.mRightRotate().mColorFlip().right
 				}
 			}
 			if k == cur.key {
@@ -349,18 +304,20 @@ func (n *mapNode) mErase(k float32) *mapNode {
 				cur.key = m.key
 				cur.value = m.value
 				cur.right = cur.right.mDeleteMin()
+				cur = cur.mRenewal()
+				break
 			} else {
 				cur = cur.right
 			}
 		}
 	}
-	if cur.parent == p {
-		return nil
+	if flagLast && !flagNotFound {
+		return nil, flagNotFound
 	}
 	for cur.parent != p {
 		cur = cur.parent.mRenewal()
 	}
-	return cur
+	return cur.mRenewal(), flagNotFound
 }
 
 func (n *mapNode) mColorFlipOnDelete() *mapNode {
@@ -370,19 +327,109 @@ func (n *mapNode) mColorFlipOnDelete() *mapNode {
 	return n
 }
 
-func (m *Map) deleteMin() {
-	m.root = m.root.mDeleteMin()
-	if m.root == nil {
-		return
-	}
-	m.root.color = mBlack
+func newMapIterator() MapIterator {
+	return MapIterator{nil, nil}
 }
 
-func (m *Map) deleteMax() {
-	m.root = m.root.mDeleteMax()
-	if m.root == nil {
-		return
+func (it *MapIterator) Illegal() {
+	it.m = nil
+	it.n = nil
+}
+
+func (it MapIterator) Get() MapPair {
+	return MapPair{it.n.key, it.n.value}
+}
+
+func (it MapIterator) Next() MapIterator {
+	if it.n == nil {
+		return it
 	}
+	if it.n.right != nil {
+		return MapIterator{it.n.right.min(), it.m}
+	}
+	if it.n.isLeft() {
+		return MapIterator{it.n.parent, it.m}
+	}
+	cur := it.n.parent
+	for cur.isRight() {
+		cur = cur.parent
+	}
+	if cur.isLeft() {
+		return MapIterator{cur.parent, it.m}
+	}
+	return MapIterator{nil, it.m}
+}
+
+func (it MapIterator) Prev() MapIterator {
+	if it.n == nil {
+		return MapIterator{it.m.root.max(), it.m}
+	}
+	if it.n.left != nil {
+		return MapIterator{it.n.left.max(), it.m}
+	}
+	if it.n.isRight() {
+		return MapIterator{it.n.parent, it.m}
+	}
+	cur := it.n.parent
+	for cur.isLeft() {
+		cur = cur.parent
+	}
+	if cur.isRight() {
+		return MapIterator{cur.parent, it.m}
+	}
+	return it
+}
+
+func (it MapIterator) Add(i int) MapIterator {
+	for i > 0 {
+		it = it.Next()
+		i--
+	}
+	return it
+}
+
+func (it MapIterator) Minus(i int) MapIterator {
+	for i > 0 {
+		it = it.Prev()
+		i--
+	}
+	return it
+}
+
+func (m *Map) Begin() MapIterator {
+	return MapIterator{m.root.min(), m}
+}
+
+func (m *Map) End() MapIterator {
+	return MapIterator{nil, m}
+}
+
+func (m *Map) mInsert(n *mapNode) {
+	cur := m.root
+	for {
+		if m.less(n.key, cur.key) {
+			if cur.left == nil {
+				cur.mInsertLeft(n)
+				break
+			} else {
+				cur = cur.left
+			}
+		} else if n.key == cur.key {
+			cur.value = n.value
+			break
+		} else {
+			if cur.right == nil {
+				cur.mInsertRight(n)
+				break
+			} else {
+				cur = cur.right
+			}
+		}
+	}
+	for cur.parent != nil {
+		cur = cur.mRenewal().parent
+	}
+	m.root = cur.mRenewal()
 	m.root.color = mBlack
 }
 
@@ -397,88 +444,183 @@ func (m *Map) Insert(k float32, v string) {
 	m.size++
 }
 
+func (m *Map) At(k float32) (string, error) {
+	cur := m.root
+	if cur == nil {
+		return mZero, errors.New("No such key")
+	}
+	for {
+		if k == cur.key {
+			return cur.value, nil
+		}
+		if m.less(k, cur.key) {
+			if cur.left != nil {
+				cur = cur.left
+				continue
+			} else {
+				return mZero, errors.New("No such key")
+			}
+		}
+		if m.less(cur.key, k) {
+			if cur.right != nil {
+				cur = cur.right
+				continue
+			} else {
+				return mZero, errors.New("No such key")
+			}
+		}
+	}
+}
+
+func (m *Map) Erase(k float32) error {
+	if m.size <= 0 || m.root == nil {
+		return errors.New("Map is empty")
+	}
+	m.size--
+	cur := m.root
+	flagNotFound := false
+	flagLast := false
+	p := m.root.parent
+	for {
+		if m.less(k, cur.key) {
+			if cur.left == nil {
+				flagNotFound = true
+				break
+			}
+			if cur.left.isBlack() && cur.left.left.isBlack() {
+				cur = cur.mColorFlipOnDelete()
+				if cur.right.left.isRed() {
+					cur.right = cur.right.mRightRotate()
+					cur = cur.mLeftRotate().mColorFlip()
+				}
+			}
+			cur = cur.left
+		} else {
+			if m.less(cur.key, k) && (cur.right == nil) {
+				flagNotFound = true
+				break
+			}
+			if cur.left.isRed() {
+				cur = cur.mRightRotate().right
+			}
+			if k == cur.key && (cur.right == nil) {
+				if cur.parent != nil {
+					if cur.parent.left == cur {
+						cur.parent.left = nil
+					} else {
+						cur.parent.right = nil
+					}
+				} else {
+					flagLast = true
+				}
+				break
+			}
+			if cur.right.isBlack() && cur.right.left.isBlack() {
+				cur = cur.mColorFlipOnDelete()
+				if cur.left.left.isRed() {
+					cur = cur.mRightRotate().mColorFlip().right
+				}
+			}
+			if k == cur.key {
+				m := cur.right.min()
+				cur.key = m.key
+				cur.value = m.value
+				cur.right = cur.right.mDeleteMin()
+				cur = cur.mRenewal()
+				break
+			} else {
+				cur = cur.right
+			}
+		}
+	}
+	if flagLast && !flagNotFound {
+		cur = nil
+		goto Result
+	}
+	for cur.parent != p {
+		cur = cur.parent.mRenewal()
+	}
+	cur = cur.mRenewal()
+
+Result:
+	m.root = cur
+	if m.root != nil {
+		m.root.color = mBlack
+	}
+	if flagNotFound {
+		return errors.New("No such key")
+	}
+	return nil
+}
+
 func (m *Map) Size() int {
 	return m.size
 }
 
-type MapFunc func(k float32, v string)
+type _MapFunc func(v string) string
 
-func (m *Map) foreach(n *mapNode, f MapFunc) {
+func (m *Map) foreach(n *mapNode, f _MapFunc) {
 	if n == nil {
 		return
 	}
 	m.foreach(n.left, f)
-	f(n.key, n.value)
+	n.value = f(n.value)
 	m.foreach(n.right, f)
 }
 
-func (m *Map) ForEach(f MapFunc) {
+type _FilterFunc func(v string) bool
+
+func (m *Map) filter(n *mapNode, nm *Map, f _FilterFunc) {
+	if n == nil {
+		return
+	}
+	m.filter(n.left, nm, f)
+	if f(n.value) {
+		nm.Insert(n.key, n.value)
+	}
+	m.filter(n.right, nm, f)
+}
+
+func (m *Map) Filter(f _FilterFunc) *Map {
+	nm := NewMap(m.less)
+	m.filter(m.root, nm, f)
+	return nm
+}
+func (m *Map) ForEach(f _MapFunc) {
 	if m.root == nil {
 		return
 	}
 	m.foreach(m.root, f)
 }
 
-func (m *Map) At(k float32) string {
-	cur := m.root
-	if cur == nil {
-		return ""
-	}
-	for {
-		if k == cur.key {
-			return cur.value
-		}
-		if k < cur.key {
-			if cur.left != nil {
-				cur = cur.left
-				continue
-			} else {
-				return ""
-			}
-		}
-		if k > cur.key {
-			if cur.right != nil {
-				cur = cur.right
-				continue
-			} else {
-				return ""
-			}
-		}
-	}
-}
-
-func (m *Map) Erase(k float32) {
-
-}
-
-func PrintMap(m *Map) {
-	if m == nil {
+func (m *Map) mapping(n *mapNode, nm *Map, f _MapFunc) {
+	if n == nil {
 		return
 	}
-	printMap(m.root)
+	m.mapping(n.left, nm, f)
+	nm.Insert(n.key, f(n.value))
+	m.mapping(n.right, nm, f)
 }
 
-func printMap(cur *mapNode) {
-	if cur == nil {
-		return
+func (m *Map) Map(f _MapFunc) *Map {
+	nm := NewMap(m.less)
+	m.mapping(m.root, nm, f)
+	return nm
+}
+
+type _ReduceFunc func(node1, node2 string) string
+
+func (m *Map) reduce(n *mapNode, res string, f _ReduceFunc) string {
+	if n == nil {
+		return res
 	}
-	printMap(cur.left)
-	var lkey, rkey, pkey float32
-	if cur.left != nil {
-		lkey = cur.left.key
-	}
-	if cur.right != nil {
-		rkey = cur.right.key
-	}
-	if cur.parent != nil {
-		pkey = cur.parent.key
-	}
-	var c string
-	if cur.color == mRed {
-		c = "red"
-	} else {
-		c = "black"
-	}
-	fmt.Printf("key:%.2f color:%s left:%.2f right:%.2f parent:%.2f\n", cur.key, c, lkey, rkey, pkey)
-	printMap(cur.right)
+	res = m.reduce(n, res, f)
+	res = f(res, n.value)
+	res = m.reduce(n, res, f)
+	return res
+}
+
+func (m *Map) Reduce(f _ReduceFunc) string {
+	var res string
+	return m.reduce(m.root, res, f)
 }
