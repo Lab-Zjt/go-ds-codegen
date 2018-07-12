@@ -507,14 +507,14 @@ func (m *{{container}}) foreach(n *mapNode, f {{mapfunc}}) {
 	m.foreach(n.right, f)
 }
 
-type {{filterfunc}} func(v {{value}}) bool
+type {{filterfunc}} func(v {{key}}) bool
 
 func (m *{{container}}) filter(n *mapNode, nm *{{container}}, f {{filterfunc}}) {
 	if n == nil {
 		return
 	}
 	m.filter(n.left, nm, f)
-	if f(n.value) {
+	if f(n.key) {
 		nm.Insert(n.key, n.value)
 	}
 	m.filter(n.right, nm, f)
